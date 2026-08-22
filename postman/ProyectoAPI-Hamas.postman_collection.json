@@ -1,0 +1,153 @@
+{
+    "info": {
+        "_postman_id": "b8e4f622-5f5d-4cb2-a93c-8cd1f035cf41",
+        "name": "ProyectoAPI - CRUD de Hamas",
+        "description": "Colección para demostrar en clase el CRUD REST de patrones Hama desarrollado con Laravel 13 y routes/api.php.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000"
+        },
+        {
+            "key": "hama_id",
+            "value": "1"
+        }
+    ],
+    "item": [
+        {
+            "name": "1. Listar hamas",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/hamas",
+                    "host": ["{{base_url}}"],
+                    "path": ["api", "hamas"]
+                },
+                "description": "Devuelve todos los patrones Hama registrados."
+            }
+        },
+        {
+            "name": "2. Crear hama",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "const response = pm.response.json();",
+                            "if (response.data && response.data.id) {",
+                            "    pm.collectionVariables.set('hama_id', response.data.id);",
+                            "}",
+                            "pm.test('Hama creado con estado 201', function () {",
+                            "    pm.response.to.have.status(201);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"nombre\": \"Estrella cósmica\",\n    \"descripcion\": \"Patrón de estrella con cuentas amarillas\",\n    \"ancho\": 50,\n    \"alto\": 50,\n    \"cantidad_cuentas\": 4,\n    \"color_principal\": \"#F59E0B\",\n    \"patron\": [\n        { \"posicion\": 1124, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1125, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1174, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1175, \"color\": \"#F59E0B\" }\n    ]\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/hamas",
+                    "host": ["{{base_url}}"],
+                    "path": ["api", "hamas"]
+                },
+                "description": "Crea un patrón Hama y guarda automáticamente su ID en la variable hama_id."
+            }
+        },
+        {
+            "name": "3. Consultar un hama",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/hamas/{{hama_id}}",
+                    "host": ["{{base_url}}"],
+                    "path": ["api", "hamas", "{{hama_id}}"]
+                },
+                "description": "Consulta el Hama creado en la petición anterior."
+            }
+        },
+        {
+            "name": "4. Actualizar hama",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"nombre\": \"Estrella galáctica\",\n    \"descripcion\": \"Patrón actualizado para la demostración\",\n    \"ancho\": 50,\n    \"alto\": 50,\n    \"cantidad_cuentas\": 5,\n    \"color_principal\": \"#8B5CF6\",\n    \"patron\": [\n        { \"posicion\": 1124, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1125, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1174, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1175, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1225, \"color\": \"#FFFFFF\" }\n    ]\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/hamas/{{hama_id}}",
+                    "host": ["{{base_url}}"],
+                    "path": ["api", "hamas", "{{hama_id}}"]
+                },
+                "description": "Actualiza todos los campos del patrón Hama."
+            }
+        },
+        {
+            "name": "5. Eliminar hama",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/hamas/{{hama_id}}",
+                    "host": ["{{base_url}}"],
+                    "path": ["api", "hamas", "{{hama_id}}"]
+                },
+                "description": "Elimina el patrón utilizado en la demostración."
+            }
+        }
+    ]
+}
