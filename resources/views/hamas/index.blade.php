@@ -6,6 +6,7 @@
     <meta name="description" content="Administrador de patrones Hama Creation">
     <title>Patrones Hama | ProyectoAPI</title>
     <link rel="stylesheet" href="{{ asset('css/hama.css') }}">
+    <script src="{{ asset('js/passport-access.js') }}" defer></script>
     <script src="{{ asset('js/hamas.js') }}" defer></script>
 </head>
 <body>
@@ -27,10 +28,15 @@
                 </a>
 
                 <span class="nav-label nav-label-spaced">Desarrollo</span>
-                <a class="nav-item" href="/respuesta">
+                <a class="nav-item" href="/conexiones">
                     <span class="nav-icon nav-icon-code" aria-hidden="true">{ }</span>
-                    Respuesta API
+                    Conexiones API
                 </a>
+                <button id="open-passport-token" class="nav-item nav-button" type="button">
+                    <span class="nav-icon" aria-hidden="true">&#128273;</span>
+                    Acceso Passport
+                    <small id="passport-token-status" class="token-status">Sin token</small>
+                </button>
             </nav>
 
             <div class="sidebar-footer">
@@ -151,6 +157,14 @@
                         </div>
                         <small class="field-error pattern-error" id="cantidad_cuentas-error"></small>
 
+                        <div class="live-preview-card">
+                            <div>
+                                <strong>Vista previa</strong>
+                                <small>Así se verá al guardar</small>
+                            </div>
+                            <canvas id="live-preview" width="250" height="250" aria-label="Vista previa del patrón actual"></canvas>
+                        </div>
+
                         <div class="field-group color-field-group">
                             <label for="color_principal">Color activo <span>*</span></label>
                             <div class="active-color-row">
@@ -178,6 +192,10 @@
                                 <span aria-hidden="true">✎</span>
                                 Pincel
                             </button>
+                            <button class="tool-button" type="button" data-tool="fill">
+                                <span aria-hidden="true">▣</span>
+                                Relleno
+                            </button>
                             <button class="tool-button" type="button" data-tool="eraser">
                                 <span aria-hidden="true">◇</span>
                                 Borrador
@@ -195,7 +213,11 @@
                                 <h3 id="pattern-editor-title">Dibuja tu patrón</h3>
                                 <p>Haz clic o arrastra sobre las celdas para colocar cuentas.</p>
                             </div>
-                            <span><b id="canvas-counter">0</b> / 2500</span>
+                            <div class="editor-history">
+                                <button id="undo-pattern" type="button" disabled aria-label="Deshacer último cambio" title="Deshacer (Ctrl+Z)">↶</button>
+                                <button id="redo-pattern" type="button" disabled aria-label="Rehacer último cambio" title="Rehacer (Ctrl+Y)">↷</button>
+                                <span><b id="canvas-counter">0</b> / 2500</span>
+                            </div>
                         </div>
 
                         <div class="canvas-scroll">
@@ -215,6 +237,21 @@
                 <button id="submit-button" class="primary-button" type="submit">
                     <span id="submit-label">Guardar hama</span>
                 </button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="passport-dialog" class="passport-dialog" aria-labelledby="passport-dialog-title">
+        <form id="passport-form">
+            <span class="eyebrow">OAUTH2 · PASSPORT</span>
+            <h2 id="passport-dialog-title">Conectar con la API</h2>
+            <p>Genera el token en Postman con la petición <strong>0. Generar token OAuth2</strong> y pégalo aquí.</p>
+            <label for="passport-token">Token Bearer</label>
+            <textarea id="passport-token" rows="4" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci..."></textarea>
+            <div class="passport-dialog-actions">
+                <button id="clear-passport-token" class="cancel-button" type="button">Borrar token</button>
+                <button class="cancel-button" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+                <button class="primary-button" type="submit">Guardar y conectar</button>
             </div>
         </form>
     </dialog>

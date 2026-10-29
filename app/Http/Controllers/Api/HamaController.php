@@ -9,11 +9,37 @@ use Illuminate\Http\Request;
 
 class HamaController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'updated_since' => ['sometimes', 'nullable', 'date'],
+        ]);
+
+        $hamas = Hama::query()
+            ->when($filters['search'] ?? null, function ($query, string $search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query
+                        ->where('nombre', 'like', "%{$search}%")
+                        ->orWhere('descripcion', 'like', "%{$search}%");
+                });
+            })
+            ->when($filters['updated_since'] ?? null, function ($query, string $updatedSince): void {
+                $query->where('updated_at', '>', $updatedSince);
+            })
+            ->latest('updated_at')
+            ->latest('id')
+            ->get();
+
         return response()->json([
             'success' => true,
-            'data' => Hama::latest()->get(),
+            'data' => $hamas,
+            'meta' => [
+                'resource' => 'hamas',
+                'api_version' => 'v1',
+                'count' => $hamas->count(),
+                'generated_at' => now()->toIso8601String(),
+            ],
         ]);
     }
 

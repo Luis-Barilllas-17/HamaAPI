@@ -1,9 +1,19 @@
 {
     "info": {
         "_postman_id": "b8e4f622-5f5d-4cb2-a93c-8cd1f035cf41",
-        "name": "ProyectoAPI - CRUD de Hamas",
-        "description": "Colección para demostrar en clase el CRUD REST de patrones Hama desarrollado con Laravel 13 y routes/api.php.",
+        "name": "ProyectoAPI - CRUD de Hamas con Passport",
+        "description": "CRUD REST v1 protegido con Laravel Passport, Client Credentials y scopes separados. Ejecuta primero la petición 0 para obtener el token Bearer.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{access_token}}",
+                "type": "string"
+            }
+        ]
     },
     "variable": [
         {
@@ -11,11 +21,143 @@
             "value": "http://127.0.0.1:8000"
         },
         {
+            "key": "client_id",
+            "value": ""
+        },
+        {
+            "key": "client_secret",
+            "value": ""
+        },
+        {
+            "key": "access_token",
+            "value": ""
+        },
+        {
             "key": "hama_id",
-            "value": "1"
+            "value": ""
         }
     ],
     "item": [
+        {
+            "name": "0. Generar token OAuth2",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "const response = pm.response.json();",
+                            "pm.test('Token generado con estado 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "    pm.expect(response.access_token).to.be.a('string').and.not.empty;",
+                            "});",
+                            "if (response.access_token) {",
+                            "    if (pm.environment.has('access_token')) {",
+                            "        pm.environment.set('access_token', response.access_token);",
+                            "    } else {",
+                            "        pm.collectionVariables.set('access_token', response.access_token);",
+                            "    }",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "auth": {
+                    "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "urlencoded",
+                    "urlencoded": [
+                        {
+                            "key": "grant_type",
+                            "value": "client_credentials",
+                            "type": "text"
+                        },
+                        {
+                            "key": "client_id",
+                            "value": "{{client_id}}",
+                            "type": "text"
+                        },
+                        {
+                            "key": "client_secret",
+                            "value": "{{client_secret}}",
+                            "type": "text"
+                        },
+                        {
+                            "key": "scope",
+                            "value": "hamas.read hamas.write hamas.delete",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{base_url}}/oauth/token",
+                    "host": ["{{base_url}}"],
+                    "path": ["oauth", "token"]
+                },
+                "description": "Genera un token de una hora y lo guarda automáticamente para las peticiones del CRUD."
+            }
+        },
+        {
+            "name": "0.1 Confirmar conexión entre proyectos",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "const response = pm.response.json();",
+                            "pm.test('Conexión autenticada correctamente', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "    pm.expect(response.success).to.eql(true);",
+                            "    pm.expect(response.connection.status).to.eql('connected');",
+                            "});",
+                            "pm.test('Puede consultar y crear Hamas', function () {",
+                            "    const permissions = Object.fromEntries(response.capabilities.map(item => [item.key, item.allowed]));",
+                            "    pm.expect(permissions['hamas.list']).to.eql(true);",
+                            "    pm.expect(permissions['hamas.create']).to.eql(true);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"project_name\": \"Postman / Proyecto externo\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/connections/handshake",
+                    "host": ["{{base_url}}"],
+                    "path": ["api", "v1", "connections", "handshake"]
+                },
+                "description": "Comprueba que el token es válido y muestra qué información puede intercambiar el proyecto consumidor."
+            }
+        },
         {
             "name": "1. Listar hamas",
             "request": {
@@ -27,11 +169,11 @@
                     }
                 ],
                 "url": {
-                    "raw": "{{base_url}}/api/hamas",
+                    "raw": "{{base_url}}/api/v1/hamas",
                     "host": ["{{base_url}}"],
-                    "path": ["api", "hamas"]
+                    "path": ["api", "v1", "hamas"]
                 },
-                "description": "Devuelve todos los patrones Hama registrados."
+                "description": "Devuelve todos los patrones usando Authorization: Bearer {{access_token}}."
             }
         },
         {
@@ -75,11 +217,11 @@
                     }
                 },
                 "url": {
-                    "raw": "{{base_url}}/api/hamas",
+                    "raw": "{{base_url}}/api/v1/hamas",
                     "host": ["{{base_url}}"],
-                    "path": ["api", "hamas"]
+                    "path": ["api", "v1", "hamas"]
                 },
-                "description": "Crea un patrón Hama y guarda automáticamente su ID en la variable hama_id."
+                "description": "Crea un patrón y guarda su ID en hama_id."
             }
         },
         {
@@ -93,11 +235,11 @@
                     }
                 ],
                 "url": {
-                    "raw": "{{base_url}}/api/hamas/{{hama_id}}",
+                    "raw": "{{base_url}}/api/v1/hamas/{{hama_id}}",
                     "host": ["{{base_url}}"],
-                    "path": ["api", "hamas", "{{hama_id}}"]
+                    "path": ["api", "v1", "hamas", "{{hama_id}}"]
                 },
-                "description": "Consulta el Hama creado en la petición anterior."
+                "description": "Consulta el Hama creado anteriormente."
             }
         },
         {
@@ -124,11 +266,11 @@
                     }
                 },
                 "url": {
-                    "raw": "{{base_url}}/api/hamas/{{hama_id}}",
+                    "raw": "{{base_url}}/api/v1/hamas/{{hama_id}}",
                     "host": ["{{base_url}}"],
-                    "path": ["api", "hamas", "{{hama_id}}"]
+                    "path": ["api", "v1", "hamas", "{{hama_id}}"]
                 },
-                "description": "Actualiza todos los campos del patrón Hama."
+                "description": "Actualiza todos los campos del patrón."
             }
         },
         {
@@ -142,9 +284,9 @@
                     }
                 ],
                 "url": {
-                    "raw": "{{base_url}}/api/hamas/{{hama_id}}",
+                    "raw": "{{base_url}}/api/v1/hamas/{{hama_id}}",
                     "host": ["{{base_url}}"],
-                    "path": ["api", "hamas", "{{hama_id}}"]
+                    "path": ["api", "v1", "hamas", "{{hama_id}}"]
                 },
                 "description": "Elimina el patrón utilizado en la demostración."
             }

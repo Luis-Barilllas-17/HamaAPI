@@ -165,6 +165,25 @@ a {
     background: linear-gradient(90deg, rgba(139, 92, 246, 0.22), rgba(139, 92, 246, 0.07));
 }
 
+.nav-button {
+    width: 100%;
+    margin-top: 7px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+}
+
+.token-status {
+    margin-left: auto;
+    color: var(--warning);
+    font-size: 0.57rem;
+}
+
+.token-status.connected {
+    color: var(--success);
+}
+
 .nav-icon {
     display: grid;
     width: 23px;
@@ -718,6 +737,43 @@ a {
     margin-bottom: 11px;
 }
 
+.live-preview-card {
+    display: grid;
+    grid-template-columns: 1fr 92px;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 16px;
+    padding: 11px;
+    border: 1px solid #3a2d40;
+    border-radius: 11px;
+    background: linear-gradient(135deg, #1d1521, #25172e);
+}
+
+.live-preview-card strong,
+.live-preview-card small {
+    display: block;
+}
+
+.live-preview-card strong {
+    margin-bottom: 5px;
+    font-size: 0.75rem;
+}
+
+.live-preview-card small {
+    color: #8f8493;
+    font-size: 0.61rem;
+    line-height: 1.45;
+}
+
+.live-preview-card canvas {
+    width: 92px;
+    height: 92px;
+    border: 1px solid #604272;
+    border-radius: 9px;
+    background: #211329;
+    image-rendering: auto;
+}
+
 .field-group {
     margin-bottom: 16px;
 }
@@ -880,7 +936,7 @@ a {
 
 .drawing-tools {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 7px;
     margin-top: 4px;
 }
@@ -941,7 +997,38 @@ a {
     font-size: 0.65rem;
 }
 
-.pattern-editor-heading > span {
+.editor-history {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.editor-history button {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid #46354d;
+    border-radius: 8px;
+    color: #e8dff0;
+    background: #1c1520;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.editor-history button:hover:not(:disabled) {
+    border-color: #8e61bc;
+    background: #38204a;
+}
+
+.editor-history button:disabled {
+    color: #5e5561;
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.editor-history > span {
     color: #8c8190;
     font-size: 0.66rem;
     white-space: nowrap;
@@ -1005,6 +1092,14 @@ a {
     box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
     touch-action: none;
     user-select: none;
+}
+
+.hama-canvas[data-tool="fill"] .canvas-cell {
+    cursor: cell;
+}
+
+.hama-canvas[data-tool="eraser"] .canvas-cell {
+    cursor: not-allowed;
 }
 
 .canvas-cell {
@@ -1077,6 +1172,69 @@ a {
     background: #321a1e;
 }
 
+.passport-dialog {
+    width: min(520px, calc(100% - 28px));
+    padding: 0;
+    border: 1px solid var(--border-light);
+    border-radius: 18px;
+    color: var(--text);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.passport-dialog::backdrop {
+    background: rgba(4, 3, 5, 0.82);
+    backdrop-filter: blur(5px);
+}
+
+.passport-dialog form {
+    padding: 28px;
+}
+
+.passport-dialog h2 {
+    margin: 8px 0 7px;
+    font-size: 1.55rem;
+}
+
+.passport-dialog p {
+    margin: 0 0 21px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.6;
+}
+
+.passport-dialog label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.passport-dialog textarea {
+    width: 100%;
+    resize: vertical;
+    padding: 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    background: #100c12;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+    line-height: 1.5;
+}
+
+.passport-dialog textarea:focus {
+    border-color: var(--primary);
+    outline: 3px solid rgba(139, 92, 246, 0.15);
+}
+
+.passport-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+    margin-top: 19px;
+}
+
 .visually-hidden {
     position: absolute;
     width: 1px;
@@ -1145,6 +1303,7 @@ a {
     }
 
     .creator-controls .color-field-group,
+    .creator-controls .live-preview-card,
     .creator-controls .drawing-tools {
         grid-column: 1 / -1;
     }

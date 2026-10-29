@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Passport::tokensCan([
+            'hamas.read' => 'Consultar patrones Hama',
+            'hamas.write' => 'Crear y actualizar patrones Hama',
+            'hamas.delete' => 'Eliminar patrones Hama',
+        ]);
+
+        Passport::setDefaultScope(['hamas.read']);
+
+        Passport::clientCredentialsTokensExpireIn(now()->addHour());
     }
 }

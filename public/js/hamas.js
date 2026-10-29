@@ -1,4 +1,4 @@
-const apiUrl = '/api/hamas';
+const apiUrl = '/api/v1/hamas';
 const gridSize = 50;
 const totalCells = gridSize * gridSize;
 
@@ -9,6 +9,9 @@ const state = {
     pattern: new Map(),
     activeTool: 'brush',
     isPainting: false,
+    actionSnapshot: null,
+    undoStack: [],
+    redoStack: [],
 };
 
 const elements = {
@@ -23,7 +26,10 @@ const elements = {
     paintedCount: document.querySelector('#painted-count'),
     canvasCounter: document.querySelector('#canvas-counter'),
     canvas: document.querySelector('#hama-canvas'),
+    livePreview: document.querySelector('#live-preview'),
     clearGrid: document.querySelector('#clear-grid'),
+    undo: document.querySelector('#undo-pattern'),
+    redo: document.querySelector('#redo-pattern'),
     colorPrincipal: document.querySelector('#color_principal'),
     colorValue: document.querySelector('#color-value'),
     dialogEyebrow: document.querySelector('#dialog-eyebrow'),
@@ -48,57 +54,28 @@ const elements = {
     toast: document.querySelector('#toast'),
 };
 
-const fallbackPatterns = [
-    [
-        '....#....',
-        '...###...',
-        '.#######.',
-        '..#####..',
-        '#########',
-        '..#####..',
-        '.###.###.',
-        '##.....##',
-        '.........',
-    ],
-    [
-        '.##...##.',
-        '####.####',
-        '#########',
-        '#########',
-        '.#######.',
-        '..#####..',
-        '...###...',
-        '....#....',
-        '.........',
-    ],
-    [
-        '..#####..',
-        '.#######.',
-        '#########',
-        '##o###o##',
-        '#########',
-        '##.###.##',
-        '#..#.#..#',
-        '#.#.#.#.#',
-        '.........',
-    ],
-];
-
 let toastTimer;
+let previewFrame;
 
 async function request(url, options = {}) {
     const response = await fetch(url, {
         ...options,
         headers: {
-            Accept: 'application/json',
-            ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-            ...options.headers,
+            ...window.PassportAccess.authorizationHeaders({
+                Accept: 'application/json',
+                ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+                ...options.headers,
+            }),
         },
     });
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+        if (response.status === 401) {
+            window.PassportAccess.openDialog();
+        }
+
         const error = new Error(data.message || 'No se pudo completar la solicitud.');
         error.status = response.status;
         error.data = data;
@@ -189,56 +166,49 @@ function createHamaCard(hama) {
 }
 
 function drawCardPreview(canvas, hama) {
-    const context = canvas.getContext('2d');
-    const pattern = normalizePattern(hama.patron);
-    const primaryColor = sanitizeColor(hama.color_principal);
+    drawPatternPreview(canvas, normalizePattern(hama.patron));
+}
 
-    context.fillStyle = '#211329';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    if (pattern.length > 0) {
-        const cellSize = canvas.width / gridSize;
-
-        pattern.forEach(({ posicion, color }) => {
-            const x = posicion % gridSize;
-            const y = Math.floor(posicion / gridSize);
-            const centerX = (x * cellSize) + (cellSize / 2);
-            const centerY = (y * cellSize) + (cellSize / 2);
-
-            context.beginPath();
-            context.arc(centerX, centerY, cellSize * 0.44, 0, Math.PI * 2);
-            context.fillStyle = color;
-            context.fill();
-            context.beginPath();
-            context.arc(centerX, centerY, cellSize * 0.14, 0, Math.PI * 2);
-            context.fillStyle = '#211329';
-            context.fill();
-        });
-
+function drawPatternPreview(canvas, pattern) {
+    if (!canvas) {
         return;
     }
 
-    const fallback = fallbackPatterns[Number(hama.id) % fallbackPatterns.length];
-    const beadSize = 20;
-    const offset = 35;
+    const context = canvas.getContext('2d');
+    const cellSize = canvas.width / gridSize;
+    const beads = pattern instanceof Map
+        ? [...pattern.entries()].map(([posicion, color]) => ({ posicion, color }))
+        : pattern;
 
-    fallback.forEach((row, rowIndex) => {
-        [...row].forEach((cell, columnIndex) => {
-            if (cell === '.') {
-                return;
-            }
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#211329';
+    context.fillRect(0, 0, canvas.width, canvas.height);
 
-            const centerX = offset + (columnIndex * beadSize) + (beadSize / 2);
-            const centerY = offset + (rowIndex * beadSize) + (beadSize / 2);
-            context.beginPath();
-            context.arc(centerX, centerY, 8.5, 0, Math.PI * 2);
-            context.fillStyle = cell === 'o' ? '#FFFFFF' : primaryColor;
-            context.fill();
-            context.beginPath();
-            context.arc(centerX, centerY, 3, 0, Math.PI * 2);
-            context.fillStyle = '#211329';
-            context.fill();
-        });
+    beads.forEach(({ posicion, color }) => {
+        const x = posicion % gridSize;
+        const y = Math.floor(posicion / gridSize);
+        const centerX = (x * cellSize) + (cellSize / 2);
+        const centerY = (y * cellSize) + (cellSize / 2);
+
+        context.beginPath();
+        context.arc(centerX, centerY, cellSize * 0.45, 0, Math.PI * 2);
+        context.fillStyle = sanitizeColor(color);
+        context.fill();
+        context.beginPath();
+        context.arc(centerX, centerY, Math.max(0.7, cellSize * 0.14), 0, Math.PI * 2);
+        context.fillStyle = '#211329';
+        context.fill();
+    });
+}
+
+function scheduleLivePreview() {
+    if (previewFrame) {
+        return;
+    }
+
+    previewFrame = window.requestAnimationFrame(() => {
+        drawPatternPreview(elements.livePreview, state.pattern);
+        previewFrame = null;
     });
 }
 
@@ -275,8 +245,13 @@ function buildCanvas() {
     elements.canvas.append(fragment);
 }
 
-function paintCell(index) {
+function applyTool(index) {
     if (!Number.isInteger(index) || index < 0 || index >= totalCells) {
+        return;
+    }
+
+    if (state.activeTool === 'fill') {
+        fillArea(index);
         return;
     }
 
@@ -300,6 +275,110 @@ function paintCell(index) {
     updateCanvasCount();
     clearFieldError('patron');
     clearFieldError('cantidad_cuentas');
+}
+
+function fillArea(startIndex) {
+    const targetColor = state.pattern.get(startIndex) ?? null;
+    const replacementColor = sanitizeColor(elements.colorPrincipal.value);
+
+    if (targetColor === replacementColor) {
+        return;
+    }
+
+    const pending = [startIndex];
+    const visited = new Set();
+
+    while (pending.length > 0) {
+        const index = pending.pop();
+
+        if (visited.has(index) || (state.pattern.get(index) ?? null) !== targetColor) {
+            continue;
+        }
+
+        visited.add(index);
+        state.pattern.set(index, replacementColor);
+
+        const row = Math.floor(index / gridSize);
+        const column = index % gridSize;
+
+        if (column > 0) pending.push(index - 1);
+        if (column < gridSize - 1) pending.push(index + 1);
+        if (row > 0) pending.push(index - gridSize);
+        if (row < gridSize - 1) pending.push(index + gridSize);
+    }
+
+    renderEntireCanvas();
+    clearFieldError('patron');
+    clearFieldError('cantidad_cuentas');
+}
+
+function snapshotPattern() {
+    return [...state.pattern.entries()];
+}
+
+function beginPatternAction() {
+    if (state.actionSnapshot === null) {
+        state.actionSnapshot = snapshotPattern();
+    }
+}
+
+function commitPatternAction() {
+    if (state.actionSnapshot === null) {
+        return;
+    }
+
+    const before = JSON.stringify(state.actionSnapshot);
+    const after = JSON.stringify(snapshotPattern());
+
+    if (before !== after) {
+        state.undoStack.push(state.actionSnapshot);
+        state.undoStack = state.undoStack.slice(-60);
+        state.redoStack = [];
+    }
+
+    state.actionSnapshot = null;
+    updateHistoryButtons();
+}
+
+function restoreSnapshot(snapshot) {
+    state.pattern = new Map(snapshot);
+    renderEntireCanvas();
+}
+
+function undoPattern() {
+    const snapshot = state.undoStack.pop();
+
+    if (!snapshot) {
+        return;
+    }
+
+    state.redoStack.push(snapshotPattern());
+    restoreSnapshot(snapshot);
+    updateHistoryButtons();
+}
+
+function redoPattern() {
+    const snapshot = state.redoStack.pop();
+
+    if (!snapshot) {
+        return;
+    }
+
+    state.undoStack.push(snapshotPattern());
+    restoreSnapshot(snapshot);
+    updateHistoryButtons();
+}
+
+function resetHistory() {
+    state.actionSnapshot = null;
+    state.undoStack = [];
+    state.redoStack = [];
+    updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+    elements.undo.disabled = state.undoStack.length === 0;
+    elements.redo.disabled = state.redoStack.length === 0;
 }
 
 function renderCanvasCell(index) {
@@ -334,9 +413,10 @@ function updateCanvasCount() {
     elements.cantidadCuentas.value = String(count);
     elements.paintedCount.textContent = count.toLocaleString('es-GT');
     elements.canvasCounter.textContent = count.toLocaleString('es-GT');
+    scheduleLivePreview();
 }
 
-function loadPattern(pattern) {
+function loadPattern(pattern, { clearHistory = true } = {}) {
     state.pattern.clear();
 
     normalizePattern(pattern).forEach(({ posicion, color }) => {
@@ -344,6 +424,10 @@ function loadPattern(pattern) {
     });
 
     renderEntireCanvas();
+
+    if (clearHistory) {
+        resetHistory();
+    }
 }
 
 function serializedPattern() {
@@ -371,10 +455,12 @@ function normalizePattern(pattern) {
 }
 
 function setTool(tool) {
-    state.activeTool = tool === 'eraser' ? 'eraser' : 'brush';
+    state.activeTool = ['brush', 'fill', 'eraser'].includes(tool) ? tool : 'brush';
     document.querySelectorAll('.tool-button[data-tool]').forEach((button) => {
         button.classList.toggle('selected', button.dataset.tool === state.activeTool);
     });
+
+    elements.canvas.dataset.tool = state.activeTool;
 }
 
 function openCreateDialog() {
@@ -508,7 +594,6 @@ function setColor(color) {
     const safeColor = sanitizeColor(color);
     elements.colorPrincipal.value = safeColor;
     elements.colorValue.textContent = safeColor;
-    setTool('brush');
     document.querySelectorAll('.quick-colors button').forEach((button) => {
         button.classList.toggle('selected', button.dataset.color.toUpperCase() === safeColor);
     });
@@ -625,9 +710,14 @@ document.querySelector('.drawing-tools').addEventListener('click', (event) => {
 });
 elements.clearGrid.addEventListener('click', () => {
     if (state.pattern.size === 0 || window.confirm('¿Limpiar todas las cuentas del tablero?')) {
-        loadPattern([]);
+        beginPatternAction();
+        state.pattern.clear();
+        renderEntireCanvas();
+        commitPatternAction();
     }
 });
+elements.undo.addEventListener('click', undoPattern);
+elements.redo.addEventListener('click', redoPattern);
 elements.canvas.addEventListener('pointerdown', (event) => {
     const cell = event.target.closest('.canvas-cell');
 
@@ -635,8 +725,15 @@ elements.canvas.addEventListener('pointerdown', (event) => {
         return;
     }
 
-    state.isPainting = true;
-    paintCell(Number(cell.dataset.index));
+    beginPatternAction();
+    applyTool(Number(cell.dataset.index));
+
+    if (state.activeTool === 'fill') {
+        commitPatternAction();
+    } else {
+        state.isPainting = true;
+    }
+
     event.preventDefault();
 });
 elements.canvas.addEventListener('pointermove', (event) => {
@@ -648,7 +745,7 @@ elements.canvas.addEventListener('pointermove', (event) => {
     const cell = hoveredElement?.closest('.canvas-cell');
 
     if (cell && elements.canvas.contains(cell)) {
-        paintCell(Number(cell.dataset.index));
+        applyTool(Number(cell.dataset.index));
     }
 
     event.preventDefault();
@@ -661,14 +758,39 @@ elements.canvas.addEventListener('click', (event) => {
     const cell = event.target.closest('.canvas-cell');
 
     if (cell) {
-        paintCell(Number(cell.dataset.index));
+        beginPatternAction();
+        applyTool(Number(cell.dataset.index));
+        commitPatternAction();
     }
 });
 window.addEventListener('pointerup', () => {
+    if (state.isPainting) {
+        commitPatternAction();
+    }
+
     state.isPainting = false;
 });
 window.addEventListener('pointercancel', () => {
+    if (state.isPainting) {
+        commitPatternAction();
+    }
+
     state.isPainting = false;
+});
+window.addEventListener('keydown', (event) => {
+    if (!elements.dialog.open || !(event.ctrlKey || event.metaKey)) {
+        return;
+    }
+
+    if (event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undoPattern();
+    }
+
+    if (event.key.toLowerCase() === 'y' || (event.key.toLowerCase() === 'z' && event.shiftKey)) {
+        event.preventDefault();
+        redoPattern();
+    }
 });
 elements.grid.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
