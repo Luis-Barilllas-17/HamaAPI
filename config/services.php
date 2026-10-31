@@ -2,6 +2,10 @@
 
 return [
 
+    'meshiverse' => [
+        'base_url' => env('MESHIVERSE_URL', 'https://meshiverse.fataldesk.lat'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

@@ -31,7 +31,7 @@ class ConnectionTokenController extends Controller
             'scopes.*' => [
                 'required',
                 'string',
-                Rule::in(['hamas.read', 'hamas.write']),
+                Rule::in(['hamas.read', 'hamas.write', 'hamas.delete']),
             ],
         ]);
 

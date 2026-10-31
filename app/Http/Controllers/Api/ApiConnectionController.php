@@ -46,11 +46,19 @@ class ApiConnectionController extends Controller
             'capabilities' => [
                 [
                     'key' => 'hamas.list',
-                    'label' => 'Consultar proyectos Hama guardados',
+                    'label' => 'Consultar proyectos Hama públicos',
                     'allowed' => $canRead,
                     'scope' => 'hamas.read',
                     'method' => 'GET',
                     'endpoint' => '/api/v1/hamas',
+                ],
+                [
+                    'key' => 'hamas.colors',
+                    'label' => 'Consultar colores utilizados en los Hamas',
+                    'allowed' => $canRead,
+                    'scope' => 'hamas.read',
+                    'method' => 'GET',
+                    'endpoint' => '/api/v1/colors',
                 ],
                 [
                     'key' => 'hamas.create',
@@ -64,7 +72,8 @@ class ApiConnectionController extends Controller
             'shared_data' => [
                 'saved_hamas' => [
                     'available' => $canRead,
-                    'records' => $canRead ? Hama::count() : null,
+                    'visibility' => 'public_only',
+                    'records' => $canRead ? Hama::query()->where('es_publico', true)->count() : null,
                     'fields' => [
                         'id',
                         'nombre',
@@ -73,14 +82,27 @@ class ApiConnectionController extends Controller
                         'alto',
                         'cantidad_cuentas',
                         'color_principal',
+                        'es_publico',
                         'patron',
                         'created_at',
                         'updated_at',
                     ],
                 ],
+                'colors' => [
+                    'available' => $canRead,
+                    'source' => 'public_hamas',
+                    'endpoint' => '/api/v1/colors',
+                    'fields' => [
+                        'color',
+                        'cantidad_cuentas',
+                        'cantidad_hamas',
+                        'hamas',
+                    ],
+                ],
                 'hama_creation' => [
                     'available' => $canWrite,
                     'board' => '50x50',
+                    'visibility' => 'public',
                     'accepted_fields' => [
                         'nombre',
                         'descripcion',

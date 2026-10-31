@@ -17,6 +17,7 @@ class HamaController extends Controller
         ]);
 
         $hamas = Hama::query()
+            ->visibleToApiConsumer($request->user('api'))
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query
@@ -38,6 +39,7 @@ class HamaController extends Controller
                 'resource' => 'hamas',
                 'api_version' => 'v1',
                 'count' => $hamas->count(),
+                'visibility' => $request->user('api') ? 'personal' : 'public_only',
                 'generated_at' => now()->toIso8601String(),
             ],
         ]);
@@ -47,6 +49,17 @@ class HamaController extends Controller
     {
         $datos = $request->validate($this->rules(), $this->messages());
         $datos = $this->synchronizePatternCount($datos);
+        $apiUser = $request->user('api');
+        $datos['user_id'] = $apiUser?->getKey();
+
+        // Una integración externa crea recursos compartibles. Los usuarios del
+        // estudio sí conservan la opción de guardar sus diseños como privados.
+        if ($apiUser === null) {
+            $datos['es_publico'] = true;
+        } else {
+            $datos['es_publico'] ??= false;
+        }
+
         $hama = Hama::create($datos);
 
         return response()->json([
@@ -56,8 +69,10 @@ class HamaController extends Controller
         ], 201);
     }
 
-    public function show(Hama $hama): JsonResponse
+    public function show(Request $request, Hama $hama): JsonResponse
     {
+        $this->ensureVisible($request, $hama);
+
         return response()->json([
             'success' => true,
             'data' => $hama,
@@ -66,6 +81,8 @@ class HamaController extends Controller
 
     public function update(Request $request, Hama $hama): JsonResponse
     {
+        $this->ensureVisible($request, $hama);
+
         $datos = $request->validate($this->rules(partial: true), $this->messages());
         $datos = $this->synchronizePatternCount($datos);
         $hama->update($datos);
@@ -77,8 +94,10 @@ class HamaController extends Controller
         ]);
     }
 
-    public function destroy(Hama $hama): JsonResponse
+    public function destroy(Request $request, Hama $hama): JsonResponse
     {
+        $this->ensureVisible($request, $hama);
+
         $hama->delete();
 
         return response()->json([
@@ -98,6 +117,7 @@ class HamaController extends Controller
             'alto' => [...$required, 'integer', 'min:1', 'max:50'],
             'cantidad_cuentas' => [...$required, 'integer', 'min:1'],
             'color_principal' => [...$required, 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'es_publico' => ['sometimes', 'boolean'],
             'patron' => ['sometimes', 'nullable', 'array', 'max:2500'],
             'patron.*.posicion' => ['required', 'integer', 'min:0', 'max:2499', 'distinct'],
             'patron.*.color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
@@ -126,5 +146,10 @@ class HamaController extends Controller
         }
 
         return $datos;
+    }
+
+    private function ensureVisible(Request $request, Hama $hama): void
+    {
+        abort_unless($hama->isVisibleToApiConsumer($request->user('api')), 404);
     }
 }

@@ -27,6 +27,12 @@
                     Patrones Hama
                 </a>
 
+                <span class="nav-label nav-label-spaced">Integraciones</span>
+                <a class="nav-item" href="/meshiverse">
+                    <span class="nav-icon" aria-hidden="true">M</span>
+                    MeshiVerse
+                </a>
+
                 <span class="nav-label nav-label-spaced">Desarrollo</span>
                 <a class="nav-item" href="/conexiones">
                     <span class="nav-icon nav-icon-code" aria-hidden="true">{ }</span>

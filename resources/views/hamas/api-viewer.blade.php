@@ -3,46 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Centro de conexiones OAuth2 de la API Hama Creation">
+    <meta name="description" content="Conexiones OAuth2 de ProyectoAPI">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Conexiones API | Hama Creation</title>
-    <link rel="stylesheet" href="{{ asset('css/hama.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/api-viewer.css') }}?v=5">
-    <script src="{{ asset('js/api-viewer.js') }}?v=5" defer></script>
+    <title>Conexiones API | Configuración</title>
+    <x-hama-favicon />
+    <link rel="stylesheet" href="{{ asset('css/hama.css') }}?v=12">
+    <link rel="stylesheet" href="{{ asset('css/api-viewer.css') }}?v=7">
+    <link rel="stylesheet" href="{{ asset('css/soft-pages.css') }}?v=1">
+    <script src="{{ asset('js/api-viewer.js') }}?v=6" defer></script>
 </head>
 <body>
     <div class="app-layout">
-        <aside class="sidebar">
-            <a class="brand" href="/" aria-label="Inicio de Hama Creation">
-                <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
-                <span><strong>HAMA CREATION</strong><small>ProyectoAPI</small></span>
-            </a>
-            <nav class="sidebar-nav" aria-label="Navegación principal">
-                <span class="nav-label">Colección</span>
-                <a class="nav-item" href="/hamas"><span class="nav-icon" aria-hidden="true">◇</span>Patrones Hama</a>
-                <span class="nav-label nav-label-spaced">Desarrollo</span>
-                <a class="nav-item active" href="/conexiones" aria-current="page"><span class="nav-icon nav-icon-code" aria-hidden="true">{ }</span>Conexiones API</a>
-            </nav>
-            <div class="sidebar-footer">
-                <span class="connection-dot" aria-hidden="true"></span>
-                <div><strong>Passport activo</strong><small>OAuth2 · API v1</small></div>
-            </div>
-        </aside>
+        <x-hama-sidebar active="settings" />
 
         <div class="content-area">
-            <header class="mobile-header">
-                <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span><strong>HAMA CREATION</strong></a>
-                <a class="mobile-back-link" href="/hamas">← Patrones</a>
-            </header>
-
             <main class="main-content connections-page">
+                <a class="settings-back-link" href="/configuracion">← Volver a Configuración</a>
                 <header class="connections-header">
-                    <div>
-                        <span class="eyebrow">PASSPORT · OAUTH2</span>
-                        <h1>Conexión entre proyectos</h1>
-                        <p>Genera accesos, valida la conexión y controla exactamente qué puede compartir ProyectoAPI.</p>
-                    </div>
-                    <span id="global-connection-status" class="connection-state waiting"><i aria-hidden="true"></i>Esperando una prueba</span>
+                    <div><span class="eyebrow">PASSPORT · OAUTH2</span><h1>Conexiones API</h1><p>Comparte únicamente proyectos Hama públicos, sus colores y la creación de nuevos diseños.</p></div>
+                    <span id="global-connection-status" class="connection-state waiting"><i aria-hidden="true"></i>Comprobando MeshiVerse</span>
                 </header>
 
                 <section class="connection-overview" aria-label="Resumen de seguridad">
@@ -51,95 +30,47 @@
                     <article><span>API compartida</span><strong>Versión 1</strong><small>/api/v1</small></article>
                 </section>
 
-                <section class="connection-grid" aria-label="Administración de tokens">
+                <section class="connection-grid" aria-label="Administración de conexiones">
                     <article class="connection-card">
-                        <div class="card-heading">
-                            <span class="card-number">01</span>
-                            <div><span class="card-kicker">TOKEN DE PROYECTOAPI</span><h2>Generar token para compartir</h2><p>Este token se entrega a MeshiVerse para que pueda consultar o crear proyectos Hama.</p></div>
-                        </div>
+                        <div class="card-heading"><span class="card-number">01</span><div><span class="card-kicker">TOKEN DE PROYECTOAPI</span><h2>Generar acceso para compartir</h2><p>Entrega este token al otro proyecto para consultar Hamas públicos, ver sus colores o crear un Hama.</p></div></div>
                         <form id="token-generator-form" class="connection-form" novalidate>
-                            <label class="form-field" for="destination-project"><span>Proyecto que recibirá el token</span><input id="destination-project" type="text" maxlength="100" value="Proyecto externo" autocomplete="off" required></label>
+                            <label class="form-field" for="destination-project"><span>Proyecto que recibirá el token</span><input id="destination-project" type="text" maxlength="100" value="MeshiVerse" autocomplete="off" required></label>
                             <fieldset class="scope-picker">
                                 <legend>¿Qué podrá hacer?</legend>
-                                <label class="scope-option">
-                                    <input id="scope-read" type="checkbox" value="hamas.read" checked>
-                                    <span class="scope-check" aria-hidden="true">✓</span>
-                                    <span><strong>Ver proyectos Hama</strong><small>Consultar diseños y sus vistas previas.</small></span>
-                                </label>
-                                <label class="scope-option">
-                                    <input id="scope-write" type="checkbox" value="hamas.write" checked>
-                                    <span class="scope-check" aria-hidden="true">✓</span>
-                                    <span><strong>Crear un Hama</strong><small>Enviar y guardar un patrón completo de 50 × 50.</small></span>
-                                </label>
+                                <label class="scope-option"><input id="scope-read" type="checkbox" value="hamas.read" checked><span class="scope-check" aria-hidden="true">✓</span><span><strong>Ver Hamas públicos y colores</strong><small>Los proyectos privados y el inventario personal nunca se comparten.</small></span></label>
+                                <label class="scope-option"><input id="scope-write" type="checkbox" value="hamas.write" checked><span class="scope-check" aria-hidden="true">✓</span><span><strong>Crear un Hama público</strong><small>Enviar y guardar un patrón completo de hasta 50 × 50.</small></span></label>
                             </fieldset>
                             <button id="generate-token" class="primary-button full-button" type="submit"><span aria-hidden="true">＋</span>Generar token seguro</button>
-                            <p class="security-note"><span aria-hidden="true">◇</span> No necesitas Client ID ni Client Secret. Laravel Passport los administra en el servidor.</p>
+                            <p class="security-note"><span aria-hidden="true">◇</span> Passport administra las credenciales internamente.</p>
                         </form>
                         <div id="generated-token-result" class="token-result" hidden>
-                            <div class="result-title"><span class="success-icon" aria-hidden="true">✓</span><div><strong>Token generado</strong><small id="generated-token-expiry">Vigencia pendiente</small></div></div>
+                            <div class="result-title"><span class="success-icon" aria-hidden="true">✓</span><div><strong>Token generado y verificado</strong><small id="generated-token-expiry">Vigencia pendiente</small></div></div>
                             <label for="generated-token">Bearer token</label>
                             <textarea id="generated-token" rows="4" readonly></textarea>
-                            <div class="token-actions">
-                                <button id="copy-generated-token" class="secondary-action" type="button">Copiar token</button>
-                                <button id="use-generated-token" class="secondary-action" type="button">Usar en esta app</button>
-                                <button id="test-generated-token" class="primary-button compact-button" type="button">Probar conexión</button>
-                            </div>
+                            <div class="token-actions"><button id="copy-generated-token" class="secondary-action" type="button">Copiar token</button><button id="use-generated-token" class="secondary-action" type="button">Usar en esta app</button></div>
                         </div>
                     </article>
 
                     <article class="connection-card">
-                        <div class="card-heading">
-                            <span class="card-number">02</span>
-                            <div><span class="card-kicker">TOKEN DEL OTRO PROYECTO</span><h2>Conectar con MeshiVerse</h2><p>Aquí debes pegar el token generado en MeshiVerse. ProyectoAPI detectará automáticamente su endpoint protegido.</p></div>
-                        </div>
-                        <form id="external-api-form" class="connection-form" novalidate>
-                            <label class="form-field" for="external-handshake-url"><span>URL base de MeshiVerse</span><input id="external-handshake-url" type="url" value="http://127.0.0.1:8001" placeholder="http://127.0.0.1:8001" autocomplete="off" required></label>
-                            <label class="form-field" for="external-token"><span>Token generado por MeshiVerse</span><textarea id="external-token" rows="6" placeholder="Pega aquí el nuevo token Bearer de MeshiVerse…" spellcheck="false" required></textarea></label>
-                            <button class="primary-button full-button" type="submit"><span aria-hidden="true">↗</span>Comprobar token de MeshiVerse</button>
-                        </form>
-                        <div id="external-result" class="inline-result neutral" role="status" aria-live="polite"><span aria-hidden="true">i</span><p>Este cuadro acepta el token del otro proyecto; no pegues aquí el token generado en el cuadro 01.</p></div>
-                        <p class="security-note external-guidance"><span aria-hidden="true">◇</span> Primero genera el token en <strong>http://127.0.0.1:8001/api</strong>.</p>
+                        <div class="card-heading"><span class="card-number">02</span><div><span class="card-kicker">CONEXIÓN ENTRANTE</span><h2>Datos recibidos de MeshiVerse</h2><p>ProyectoAPI comprueba la API pública al abrir esta pantalla. No necesitas pegar credenciales.</p></div></div>
+                        <div id="meshiverse-connection" class="automatic-connection loading" role="status" aria-live="polite"><span class="automatic-connection-icon" aria-hidden="true">↔</span><div><strong id="meshiverse-connection-title">Comprobando intercambio…</strong><p id="meshiverse-connection-message">Consultando el estado y los datos públicos de MeshiVerse.</p></div></div>
+                        <dl class="connection-data-summary"><div><dt>Servicio</dt><dd id="meshiverse-service">MeshiVerse</dd></div><div><dt>Dato recibido</dt><dd id="meshiverse-resource">Comprobando…</dd></div></dl>
+                        <a class="secondary-action meshiverse-view-link" href="/meshiverse">Ver datos recibidos →</a>
                     </article>
                 </section>
 
                 <section class="shared-section" aria-labelledby="shared-title">
-                    <div class="section-heading">
-                        <div><span class="eyebrow">CONTRATO DE DATOS</span><h2 id="shared-title">¿Qué compartirá ProyectoAPI?</h2></div>
-                        <span class="limited-badge">Solo con permiso</span>
-                    </div>
+                    <div class="section-heading"><div><span class="eyebrow">CONTRATO DE DATOS</span><h2 id="shared-title">¿Qué comparte ProyectoAPI?</h2></div><span class="limited-badge">Solo con token</span></div>
                     <div class="shared-grid">
-                        <article class="share-card">
-                            <span class="share-icon" aria-hidden="true">▦</span>
-                            <div class="share-content"><span class="method-label get">GET</span><h3>Proyectos Hama guardados</h3><p>Comparte nombre, descripción, tamaño, cuentas, color principal y el patrón para mostrar su vista previa.</p><code>/api/v1/hamas</code><small><strong id="shared-hama-count">—</strong> registros disponibles después de validar · scope: hamas.read</small></div>
-                        </article>
-                        <article class="share-card">
-                            <span class="share-icon" aria-hidden="true">✦</span>
-                            <div class="share-content"><span class="method-label post">POST</span><h3>Crear un Hama 50 × 50</h3><p>Recibe los datos del diseño y su cuadrícula completa para que el otro proyecto pueda crear Hamas.</p><code>/api/v1/hamas</code><small>nombre · descripción · colores · patrón · scope: hamas.write</small></div>
-                        </article>
+                        <article class="share-card"><span class="share-icon" aria-hidden="true">▦</span><div class="share-content"><span class="method-label get">GET</span><h3>Hamas públicos</h3><p>Datos y patrón completo; los proyectos privados quedan fuera.</p><code>/api/v1/hamas</code><small><strong id="shared-hama-count">—</strong> diseños públicos · scope: hamas.read</small></div></article>
+                        <article class="share-card"><span class="share-icon color-share-icon" aria-hidden="true">●</span><div class="share-content"><span class="method-label get">GET</span><h3>Colores compartidos</h3><p>Tonos y cantidades usados únicamente en los Hamas públicos.</p><code>/api/v1/colors</code><small><strong id="shared-color-count">—</strong> colores · scope: hamas.read</small></div></article>
+                        <article class="share-card"><span class="share-icon" aria-hidden="true">✦</span><div class="share-content"><span class="method-label post">POST</span><h3>Crear un Hama público</h3><p>Recibe un patrón desde otra aplicación y lo publica en la galería compartida.</p><code>/api/v1/hamas</code><small>nombre · colores · patrón · scope: hamas.write</small></div></article>
                     </div>
                 </section>
-
-                <section id="connection-proof" class="connection-proof" aria-labelledby="proof-title">
-                    <div class="proof-heading">
-                        <div><span class="eyebrow">COMPROBANTE</span><h2 id="proof-title">Acceso entregado por ProyectoAPI</h2><p id="proof-message">Genera un token en el cuadro 01 y pulsa “Probar conexión” para revisar sus permisos Hama.</p></div>
-                        <span id="proof-status" class="proof-status pending">Sin verificar</span>
-                    </div>
-                    <div class="proof-checks">
-                        <article id="check-token" class="proof-check pending"><i>1</i><span><strong>Token válido</strong><small>Firma y vigencia</small></span></article>
-                        <article id="check-handshake" class="proof-check pending"><i>2</i><span><strong>API conectada</strong><small>Handshake seguro</small></span></article>
-                        <article id="check-read" class="proof-check pending"><i>3</i><span><strong>Consulta de Hamas</strong><small>Permiso hamas.read</small></span></article>
-                        <article id="check-write" class="proof-check pending"><i>4</i><span><strong>Creación de Hamas</strong><small>Permiso hamas.write</small></span></article>
-                    </div>
-                    <dl id="proof-details" class="proof-details" hidden>
-                        <div><dt>Proveedor</dt><dd id="proof-provider">—</dd></div>
-                        <div><dt>Consumidor</dt><dd id="proof-consumer">—</dd></div>
-                        <div><dt>Vence</dt><dd id="proof-expiry">—</dd></div>
-                    </dl>
-                </section>
-
             </main>
         </div>
     </div>
+
     <div id="viewer-toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

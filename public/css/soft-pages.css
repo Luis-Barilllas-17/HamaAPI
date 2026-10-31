@@ -1,0 +1,250 @@
+/* Capa clara para las pantallas que conservan módulos CSS independientes. */
+.settings-back-link {
+    display: inline-flex;
+    margin-bottom: 18px;
+    color: #587166;
+    font-size: 0.65rem;
+    font-weight: 780;
+    text-decoration: none;
+}
+
+.connections-header p,
+.card-heading p,
+.proof-heading p,
+.share-content p,
+.share-content small {
+    color: #63786f;
+}
+
+.connection-state {
+    color: #61766c;
+    border-color: #b8cdb8;
+    background: rgba(238, 240, 219, 0.92);
+}
+
+.connection-state.connected {
+    color: #397c64;
+    border-color: #b8dece;
+    background: #edf8f3;
+}
+
+.connection-state.error {
+    color: #b05059;
+    border-color: #edc2c6;
+    background: #fff1f2;
+}
+
+.connection-overview {
+    border-color: #b8cdb8;
+    background: rgba(238, 240, 219, 0.94);
+    box-shadow: 0 10px 34px rgba(43, 80, 59, 0.07);
+}
+
+.connection-overview article { border-color: #e7dfe9; }
+.connection-overview span,
+.connection-overview small { color: #928997; }
+.connection-overview strong { color: #3d3748; }
+
+.connection-card,
+.shared-section {
+    border-color: #b7cdb7;
+    background: rgba(238, 240, 219, 0.96);
+    box-shadow: 0 16px 45px rgba(43, 78, 58, 0.09);
+}
+
+.card-number {
+    color: #17665d;
+    border-color: #9fc5ad;
+    background: #d7e7cc;
+}
+
+.card-kicker { color: #a13b95; }
+.card-heading h2,
+.section-heading h2 { color: #352f40; }
+
+.form-field > span,
+.token-result > label,
+.scope-picker legend { color: #5c5466; }
+
+.form-field input,
+.form-field textarea,
+.token-result textarea {
+    color: #203d35;
+    border-color: #b5c9b4;
+    background: #e7ead3;
+}
+
+.form-field input:focus,
+.form-field textarea:focus,
+.token-result textarea:focus {
+    border-color: #398d74;
+    box-shadow: 0 0 0 3px rgba(43, 138, 112, 0.12);
+}
+
+.scope-option {
+    border-color: #b8ccb8;
+    background: #e7ead3;
+}
+
+.scope-option:has(input:checked) {
+    border-color: #7eaf91;
+    background: #d6e6ca;
+}
+
+.scope-check {
+    border-color: #d4cad9;
+    background: white;
+}
+
+.scope-option input:checked + .scope-check {
+    border-color: #287c68;
+    background: #287c68;
+}
+
+.scope-option strong { color: #504859; }
+.scope-option small { color: #8d8492; }
+.security-note { color: #98909d; }
+
+.token-result {
+    border-color: #b9ddcf;
+    background: #f0f8f4;
+}
+
+.result-title small { color: #678f80; }
+.success-icon { color: white; background: #62ad90; }
+
+.secondary-action {
+    color: #655b70;
+    border-color: #ddd3e3;
+    background: #faf7fb;
+}
+
+.secondary-action:hover {
+    color: #544791;
+    border-color: #b8aade;
+    background: #efeaf9;
+}
+
+.automatic-connection {
+    border-color: #b8ccb8;
+    background: #e5e9d1;
+}
+
+.automatic-connection p { color: #827987; }
+.automatic-connection-icon { color: #8e3b83; background: #e8cde3; }
+.automatic-connection.success { border-color: #bddfcf; background: #f0f8f4; }
+.automatic-connection.success .automatic-connection-icon { color: white; background: #62ad90; }
+.automatic-connection.warning { border-color: #ead29d; background: #fff8e9; }
+.automatic-connection.error { border-color: #edc1c5; background: #fff2f3; }
+
+.connection-data-summary div {
+    border-color: #bdcfba;
+    background: #e5e9d1;
+}
+
+.connection-data-summary dt { color: #97909c; }
+.connection-data-summary dd { color: #554d5e; }
+
+.limited-badge {
+    color: #6e6280;
+    border-color: #d6cae0;
+    background: #f3eef7;
+}
+
+.share-card {
+    border-color: #bdcfba;
+    background: #e5e9d1;
+}
+
+.share-icon {
+    color: #963a8a;
+    background: #e8cde3;
+}
+
+.share-content h3 { color: #3c3546; }
+.share-content code { color: #70647d; }
+.method-label.get { color: #3d8067; background: #e8f5ef; }
+.method-label.post { color: #6657aa; background: #eee9f8; }
+
+.connections-page .toast {
+    color: #493f55;
+    border-color: #d5c9df;
+    background: #fffafd;
+}
+
+/* MeshiVerse */
+.meshi-header p { color: #7e7584; }
+.meshi-status.online { color: #397c64; border-color: #b9ddcf; background: #edf8f3; }
+.meshi-status.offline { color: #b0515b; border-color: #ebc0c4; background: #fff1f2; }
+
+.meshi-source-bar {
+    color: #667b71;
+    border-color: #b8cdb8;
+    background: rgba(238, 240, 219, 0.94);
+}
+
+.meshi-source-bar b { color: #397b63; background: #eaf6f0; }
+
+.dish-hero {
+    border-color: #aec7b1;
+    background:
+        radial-gradient(circle at 95% 0, rgba(213, 83, 190, 0.2), transparent 25rem),
+        linear-gradient(135deg, #d6e7c9, #ece9cc);
+    box-shadow: 0 20px 55px rgba(43, 75, 57, 0.12);
+}
+
+.dish-copy h2 { color: #302a3a; }
+.dish-kicker { color: #a13b95; }
+.dish-subtitle { color: #74607d; }
+.dish-description { color: #7e7584; }
+
+.dish-metrics {
+    border-color: #bdcfba;
+    background: #e9ecd6;
+}
+
+.dish-metrics div { border-color: #e3dbe7; }
+.dish-metrics span { color: #938a99; }
+.dish-metrics strong { color: #484050; }
+
+.anime-chip {
+    border-color: color-mix(in srgb, var(--anime-from), white 65%);
+    background: linear-gradient(100deg, color-mix(in srgb, var(--anime-from), white 86%), color-mix(in srgb, var(--anime-to), white 91%));
+}
+
+.anime-chip small { color: #8d8492; }
+.anime-chip strong { color: #493f52; }
+.meshi-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+
+.recipe-details > article {
+    border-color: #b8cdb8;
+    background: rgba(238, 240, 219, 0.94);
+    box-shadow: 0 10px 32px rgba(43, 76, 57, 0.07);
+}
+
+.detail-heading > span { color: #17665d; border-color: #a9c7ae; background: #d8e8cd; }
+.detail-heading small { color: #a13b95; }
+.detail-heading h3 { color: #3b3445; }
+.ingredient-list li { color: #6f6776; background: #f8f5f8; }
+.ingredient-list i { background: #8a7bd1; }
+.steps-list li { color: #746c7a; }
+.steps-list span { color: #6455aa; background: #ebe6f7; }
+
+.api-data-note {
+    border-color: #bfdfd2;
+    background: #eef8f3;
+}
+
+.api-data-note > span { color: #397a62; background: #dcefe7; }
+.api-data-note strong { color: #416b5b; }
+.api-data-note p { color: #71817a; }
+.api-data-note code { color: #536d63; }
+
+.meshi-empty-state {
+    border-color: #b8cdb8;
+    background: rgba(238, 240, 219, 0.94);
+}
+
+@media (max-width: 650px) {
+    .meshi-actions > * { width: 100%; }
+}

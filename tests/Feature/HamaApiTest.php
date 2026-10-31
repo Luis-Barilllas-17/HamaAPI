@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Hama;
+use App\Models\InventoryColor;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Passport\ClientRepository;
@@ -35,7 +37,8 @@ class HamaApiTest extends TestCase
         $createResponse
             ->assertCreated()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.nombre', 'Estrella cósmica');
+            ->assertJsonPath('data.nombre', 'Estrella cósmica')
+            ->assertJsonPath('data.es_publico', true);
 
         $hamaId = $createResponse->json('data.id');
 
@@ -100,6 +103,122 @@ class HamaApiTest extends TestCase
         $this->getJson('/api/v1/hamas')
             ->assertUnauthorized()
             ->assertJsonPath('message', 'Unauthenticated.');
+
+        $this->getJson('/api/v1/colors')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'Unauthenticated.');
+    }
+
+    public function test_external_clients_only_receive_public_hamas(): void
+    {
+        $public = Hama::create([
+            'nombre' => 'Hama público',
+            'descripcion' => 'Se puede compartir',
+            'ancho' => 50,
+            'alto' => 50,
+            'cantidad_cuentas' => 1,
+            'color_principal' => '#2B8A70',
+            'es_publico' => true,
+            'patron' => [['posicion' => 0, 'color' => '#2B8A70']],
+        ]);
+        $private = Hama::create([
+            'nombre' => 'Hama privado',
+            'descripcion' => 'No debe salir de la aplicación',
+            'ancho' => 50,
+            'alto' => 50,
+            'cantidad_cuentas' => 1,
+            'color_principal' => '#C238BA',
+            'es_publico' => false,
+            'patron' => [['posicion' => 1, 'color' => '#C238BA']],
+        ]);
+
+        $this->authenticateClient(['hamas.read']);
+
+        $this->getJson('/api/v1/hamas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $public->id)
+            ->assertJsonPath('data.0.es_publico', true);
+
+        $this->getJson("/api/v1/hamas/{$private->id}")->assertNotFound();
+        $this->getJson('/api/v1/colors')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.color', '#2B8A70');
+    }
+
+    public function test_external_projects_share_public_hamas_colors_and_can_create_a_public_hama(): void
+    {
+        $this->authenticateClient(['hamas.read', 'hamas.write']);
+
+        $created = $this->postJson('/api/v1/hamas', [
+            'nombre' => 'Flor enviada por otra aplicación',
+            'descripcion' => 'Creada mediante el contrato compartido',
+            'ancho' => 50,
+            'alto' => 50,
+            'cantidad_cuentas' => 2,
+            'color_principal' => '#D887AF',
+            'es_publico' => false,
+            'patron' => [
+                ['posicion' => 1200, 'color' => '#D887AF'],
+                ['posicion' => 1201, 'color' => '#E5C94F'],
+            ],
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.es_publico', true);
+
+        $this->getJson('/api/v1/hamas')
+            ->assertOk()
+            ->assertJsonPath('meta.visibility', 'public_only')
+            ->assertJsonPath('data.0.id', $created->json('data.id'));
+
+        $this->getJson('/api/v1/colors')
+            ->assertOk()
+            ->assertJsonPath('meta.visibility', 'public_hamas_only')
+            ->assertJsonFragment(['color' => '#D887AF'])
+            ->assertJsonFragment(['color' => '#E5C94F']);
+    }
+
+    public function test_users_see_their_private_hamas_and_admins_see_everything(): void
+    {
+        $owner = User::factory()->create(['role' => User::ROLE_USER]);
+        $other = User::factory()->create(['role' => User::ROLE_USER]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $private = Hama::create([
+            'user_id' => $owner->id,
+            'nombre' => 'Privado del propietario',
+            'descripcion' => null,
+            'ancho' => 50,
+            'alto' => 50,
+            'cantidad_cuentas' => 1,
+            'color_principal' => '#C238BA',
+            'es_publico' => false,
+            'patron' => [['posicion' => 1, 'color' => '#C238BA']],
+        ]);
+        $otherHama = Hama::create([
+            'user_id' => $other->id,
+            'nombre' => 'Proyecto de otra persona',
+            'descripcion' => null,
+            'ancho' => 50,
+            'alto' => 50,
+            'cantidad_cuentas' => 1,
+            'color_principal' => '#2B8A70',
+            'es_publico' => true,
+            'patron' => [['posicion' => 2, 'color' => '#2B8A70']],
+        ]);
+
+        Passport::actingAs($owner, ['hamas.read']);
+        $this->getJson('/api/v1/hamas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $private->id);
+        $this->getJson("/api/v1/hamas/{$otherHama->id}")->assertNotFound();
+
+        Passport::actingAs($admin, ['hamas.read']);
+        $this->getJson('/api/v1/hamas')
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
     }
 
     public function test_scopes_limit_what_an_api_client_can_do(): void
@@ -119,6 +238,101 @@ class HamaApiTest extends TestCase
         $this->getJson('/api/v1/hamas')->assertOk();
         $this->postJson('/api/v1/hamas', [])->assertForbidden();
         $this->deleteJson("/api/v1/hamas/{$hama->id}")->assertForbidden();
+    }
+
+    public function test_colors_endpoint_shares_the_colors_used_by_hamas(): void
+    {
+        $this->authenticateClient(['hamas.read']);
+
+        Hama::create([
+            'nombre' => 'Corazón de prueba',
+            'descripcion' => 'Diseño con dos colores',
+            'ancho' => 50,
+            'alto' => 50,
+            'cantidad_cuentas' => 3,
+            'color_principal' => '#EF4444',
+            'patron' => [
+                ['posicion' => 0, 'color' => '#ef4444'],
+                ['posicion' => 1, 'color' => '#EF4444'],
+                ['posicion' => 2, 'color' => '#8B5CF6'],
+            ],
+        ]);
+
+        $this->getJson('/api/v1/colors')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('meta.resource', 'hama_colors')
+            ->assertJsonPath('meta.count', 2)
+            ->assertJsonPath('meta.total_cuentas', 3)
+            ->assertJsonPath('data.0.color', '#EF4444')
+            ->assertJsonPath('data.0.cantidad_cuentas', 2)
+            ->assertJsonPath('data.0.cantidad_hamas', 1)
+            ->assertJsonPath('data.1.color', '#8B5CF6');
+    }
+
+    public function test_a_user_can_manage_their_personal_color_inventory(): void
+    {
+        $user = User::factory()->create();
+        Passport::actingAs($user, ['hamas.read', 'hamas.write', 'hamas.delete']);
+
+        $createResponse = $this->postJson('/api/v1/inventory-colors', [
+            'nombre' => 'Verde bosque',
+            'hex_color' => '#48b978',
+            'cantidad' => 850,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.nombre', 'Verde bosque')
+            ->assertJsonPath('data.hex_color', '#48B978')
+            ->assertJsonPath('data.cantidad', 850);
+
+        $colorId = $createResponse->json('data.id');
+
+        $this->getJson('/api/v1/inventory-colors')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('meta.total_cuentas', 850);
+
+        $this->patchJson("/api/v1/inventory-colors/{$colorId}", [
+            'nombre' => 'Verde Pukei',
+            'cantidad' => 1200,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.nombre', 'Verde Pukei')
+            ->assertJsonPath('data.cantidad', 1200);
+
+        $this->deleteJson("/api/v1/inventory-colors/{$colorId}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('inventory_colors', ['id' => $colorId]);
+    }
+
+    public function test_color_inventory_is_private_to_each_user(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $color = InventoryColor::create([
+            'user_id' => $owner->id,
+            'nombre' => 'Turquesa',
+            'hex_color' => '#258D8D',
+            'cantidad' => 400,
+        ]);
+
+        Passport::actingAs($other, ['hamas.read', 'hamas.write', 'hamas.delete']);
+        $this->getJson('/api/v1/inventory-colors')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+        $this->patchJson("/api/v1/inventory-colors/{$color->id}", ['cantidad' => 999])
+            ->assertNotFound();
+
+    }
+
+    public function test_external_clients_cannot_read_a_personal_color_inventory(): void
+    {
+        $this->authenticateClient(['hamas.read']);
+
+        $this->getJson('/api/v1/inventory-colors')
+            ->assertForbidden()
+            ->assertJsonPath('message', 'El inventario personal requiere un token de usuario.');
     }
 
     public function test_legacy_endpoint_remains_available(): void
@@ -194,8 +408,13 @@ class HamaApiTest extends TestCase
             ->assertJsonPath('connection.consumer', 'Proyecto Dinosaurio')
             ->assertJsonPath('capabilities.0.allowed', true)
             ->assertJsonPath('capabilities.1.allowed', true)
+            ->assertJsonPath('capabilities.2.allowed', true)
             ->assertJsonPath('shared_data.saved_hamas.records', 1)
-            ->assertJsonPath('shared_data.hama_creation.board', '50x50');
+            ->assertJsonPath('shared_data.saved_hamas.visibility', 'public_only')
+            ->assertJsonPath('shared_data.colors.endpoint', '/api/v1/colors')
+            ->assertJsonPath('shared_data.colors.source', 'public_hamas')
+            ->assertJsonPath('shared_data.hama_creation.board', '50x50')
+            ->assertJsonPath('shared_data.hama_creation.visibility', 'public');
     }
 
     public function test_connection_handshake_detects_a_read_only_token(): void
@@ -209,7 +428,8 @@ class HamaApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('capabilities.0.allowed', true)
-            ->assertJsonPath('capabilities.1.allowed', false)
+            ->assertJsonPath('capabilities.1.allowed', true)
+            ->assertJsonPath('capabilities.2.allowed', false)
             ->assertJsonPath('shared_data.hama_creation.available', false);
     }
 
@@ -222,6 +442,8 @@ class HamaApiTest extends TestCase
 
     public function test_connection_center_generates_a_passport_token_automatically(): void
     {
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
+
         $tokenResponse = $this->postJson('/conexiones/token', [
             'project_name' => 'Proyecto Dinosaurio',
             'scopes' => ['hamas.read', 'hamas.write'],
@@ -237,55 +459,128 @@ class HamaApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('connection.status', 'connected')
             ->assertJsonPath('capabilities.0.allowed', true)
-            ->assertJsonPath('capabilities.1.allowed', true);
+            ->assertJsonPath('capabilities.1.allowed', true)
+            ->assertJsonPath('capabilities.2.allowed', true);
     }
 
-    public function test_connection_center_detects_a_partner_api_without_browser_cors(): void
+    public function test_the_studio_generates_a_personal_token_for_private_projects(): void
     {
+        $user = User::factory()->create(['role' => User::ROLE_USER]);
+        $private = Hama::create([
+            'user_id' => $user->id,
+            'nombre' => 'Diseño privado del estudio',
+            'descripcion' => null,
+            'ancho' => 50,
+            'alto' => 50,
+            'cantidad_cuentas' => 1,
+            'color_principal' => '#C238BA',
+            'es_publico' => false,
+            'patron' => [['posicion' => 8, 'color' => '#C238BA']],
+        ]);
+
+        $tokenResponse = $this->actingAs($user)
+            ->postJson('/session/api-token')
+            ->assertOk()
+            ->assertJsonPath('token_type', 'Bearer')
+            ->assertJsonStructure(['access_token', 'expires_in']);
+
+        $this->withToken($tokenResponse->json('access_token'))
+            ->getJson('/api/v1/hamas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $private->id)
+            ->assertJsonPath('data.0.es_publico', false);
+    }
+
+    public function test_meshiverse_section_displays_public_api_data_without_asking_for_a_token(): void
+    {
+        $this->actingAs(User::factory()->create());
+
         Http::fake([
-            'http://127.0.0.1:8001/api/v1/connections/handshake' => Http::response([], 404),
-            'http://127.0.0.1:8001/api/v1/partner/connection' => Http::response([
-                'status' => 'connected',
+            'https://meshiverse.fataldesk.lat/api/v1/status' => Http::response([
+                'status' => 'ok',
                 'service' => 'MeshiVerse',
-                'message' => 'Conexión autenticada correctamente.',
-                'sharing' => [
-                    'dish_of_the_day' => ['label' => 'Platillo del día'],
+                'version' => 'v1',
+            ]),
+            'https://meshiverse.fataldesk.lat/api/v1/dish-of-the-day' => Http::response([
+                'data' => [
+                    'title' => 'Senshi al vapor',
+                    'subtitle' => 'Platillo de prueba',
+                    'description' => 'Descripción servida por la API.',
+                    'ingredients' => ['Harina', 'Agua'],
+                    'steps' => ['Mezclar', 'Cocinar'],
+                    'links' => ['web' => 'https://meshiverse.fataldesk.lat/recetas/senshi-al-vapor'],
                 ],
+                'meta' => ['selection' => 'dish-of-the-day'],
             ]),
         ]);
 
-        $this->postJson('/conexiones/probar-externa', [
-            'base_url' => 'http://127.0.0.1:8001',
-            'token' => 'token-generado-por-meshiverse',
-        ])
+        $this->get('/meshiverse')
             ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('connection.status', 'connected')
-            ->assertJsonPath('connection.provider', 'MeshiVerse')
-            ->assertJsonPath('connection.contract', 'partner');
+            ->assertSee('Senshi al vapor')
+            ->assertSee('Una integración que se siente natural')
+            ->assertDontSee('external-token');
 
         Http::assertSentCount(2);
     }
 
-    public function test_external_connection_explains_when_partner_rejects_its_token(): void
+    public function test_meshiverse_status_reports_if_data_is_being_exchanged(): void
     {
+        $this->actingAs(User::factory()->create());
+
         Http::fake([
-            'http://127.0.0.1:8001/api/v1/connections/handshake' => Http::response([], 404),
-            'http://127.0.0.1:8001/api/v1/partner/connection' => Http::response([
-                'message' => 'Unauthenticated.',
-            ], 401),
+            'https://meshiverse.fataldesk.lat/api/v1/status' => Http::response([
+                'status' => 'ok',
+                'service' => 'MeshiVerse',
+                'version' => 'v1',
+            ]),
+            'https://meshiverse.fataldesk.lat/api/v1/dish-of-the-day' => Http::response([
+                'data' => ['title' => 'Senshi al vapor'],
+                'meta' => ['selection' => 'dish-of-the-day'],
+            ]),
         ]);
 
-        $this->postJson('/conexiones/probar-externa', [
-            'base_url' => 'http://127.0.0.1:8001',
-            'token' => 'token-equivocado',
-        ])
-            ->assertUnprocessable()
-            ->assertJsonPath('remote_status', 401)
-            ->assertJsonPath(
-                'message',
-                'El otro proyecto respondió, pero rechazó el token. Debes usar un token generado por ese mismo proyecto.'
-            );
+        $this->getJson('/meshiverse/status')
+            ->assertOk()
+            ->assertJsonPath('connected', true)
+            ->assertJsonPath('dish_available', true)
+            ->assertJsonPath('service', 'MeshiVerse')
+            ->assertJsonPath('dish.title', 'Senshi al vapor');
+    }
+
+    public function test_visual_workspace_sections_render_successfully(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
+
+        $this->get('/proyectos')
+            ->assertOk()
+            ->assertSee('Tus creaciones')
+            ->assertDontSee('Diseños guardados')
+            ->assertSee('/crear-hama', false);
+
+        $this->get('/crear-hama')
+            ->assertOk()
+            ->assertSee('Crea algo que se sienta tuyo')
+            ->assertSee('hama-canvas', false);
+
+        $this->get('/inventario')
+            ->assertOk()
+            ->assertSee('Inventario de colores')
+            ->assertSee('Escanear foto')
+            ->assertSee('colors-grid', false);
+
+        $this->get('/configuracion')
+            ->assertOk()
+            ->assertSee('API y conexión entre proyectos')
+            ->assertSee('/configuracion/api', false);
+
+        $this->get('/configuracion/api')
+            ->assertOk()
+            ->assertSee('Conexiones API')
+            ->assertDontSee('Probar conexión');
+
+        $this->get('/conexiones')
+            ->assertRedirect('/configuracion/api');
     }
 
     /** @param array<int, string> $scopes */

@@ -10,33 +10,19 @@ const elements = {
     generatedExpiry: document.querySelector('#generated-token-expiry'),
     copyToken: document.querySelector('#copy-generated-token'),
     useToken: document.querySelector('#use-generated-token'),
-    testGeneratedToken: document.querySelector('#test-generated-token'),
-    externalForm: document.querySelector('#external-api-form'),
-    externalUrl: document.querySelector('#external-handshake-url'),
-    externalToken: document.querySelector('#external-token'),
-    externalResult: document.querySelector('#external-result'),
     globalStatus: document.querySelector('#global-connection-status'),
-    proofStatus: document.querySelector('#proof-status'),
-    proofMessage: document.querySelector('#proof-message'),
-    proofDetails: document.querySelector('#proof-details'),
-    proofProvider: document.querySelector('#proof-provider'),
-    proofConsumer: document.querySelector('#proof-consumer'),
-    proofExpiry: document.querySelector('#proof-expiry'),
-    checkToken: document.querySelector('#check-token'),
-    checkHandshake: document.querySelector('#check-handshake'),
-    checkRead: document.querySelector('#check-read'),
-    checkWrite: document.querySelector('#check-write'),
-    sharedCount: document.querySelector('#shared-hama-count'),
+    meshiverseConnection: document.querySelector('#meshiverse-connection'),
+    meshiverseTitle: document.querySelector('#meshiverse-connection-title'),
+    meshiverseMessage: document.querySelector('#meshiverse-connection-message'),
+    meshiverseService: document.querySelector('#meshiverse-service'),
+    meshiverseResource: document.querySelector('#meshiverse-resource'),
+    sharedHamaCount: document.querySelector('#shared-hama-count'),
+    sharedColorCount: document.querySelector('#shared-color-count'),
     toast: document.querySelector('#viewer-toast'),
 };
 
 let activeToken = '';
-let activeProject = '';
 let toastTimer;
-
-function normalizeToken(value) {
-    return String(value || '').trim().replace(/^Bearer\s+/i, '');
-}
 
 async function requestJson(url, options = {}) {
     const response = await fetch(url, options);
@@ -52,13 +38,10 @@ async function requestJson(url, options = {}) {
     }
 
     if (!response.ok) {
-        const validationMessage = data.errors
-            ? Object.values(data.errors).flat().join(' ')
-            : '';
+        const validationMessage = data.errors ? Object.values(data.errors).flat().join(' ') : '';
         const message = data.error_description || validationMessage || data.message || `Solicitud rechazada (${response.status}).`;
         const requestError = new Error(message);
         requestError.status = response.status;
-        requestError.data = data;
         throw requestError;
     }
 
@@ -99,18 +82,16 @@ async function generateToken(event) {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken,
             },
-            body: JSON.stringify({
-                project_name: projectName,
-                scopes,
-            }),
+            body: JSON.stringify({ project_name: projectName, scopes }),
         });
 
         activeToken = normalizeToken(data.access_token);
-        activeProject = projectName;
         elements.generatedToken.value = activeToken;
         elements.generatedExpiry.textContent = expiryCopy(data.expires_in);
         elements.generatedResult.hidden = false;
-        showToast(`Token listo para ${projectName}.`);
+
+        await verifySharedResources(activeToken, scopes);
+        showToast(`Token listo y verificado para ${projectName}.`);
         elements.generatedResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (error) {
         showToast(`No se pudo generar: ${error.message}`, true);
@@ -119,129 +100,58 @@ async function generateToken(event) {
     }
 }
 
-function expiryCopy(seconds) {
-    if (!Number.isFinite(Number(seconds))) {
-        return 'Revisa su vigencia al probar la conexión';
-    }
-
-    const expiration = new Date(Date.now() + Number(seconds) * 1000);
-    return `Válido hasta ${formatDate(expiration.toISOString())}`;
-}
-
-async function testLocalToken(token, projectName, button) {
-    const cleanToken = normalizeToken(token);
-    const cleanProject = String(projectName || '').trim();
-
-    if (!cleanToken || !cleanProject) {
-        showToast('Indica el proyecto y un token para realizar la prueba.', true);
+async function verifySharedResources(token, scopes) {
+    if (!scopes.includes('hamas.read')) {
+        elements.sharedHamaCount.textContent = 'Sin permiso';
+        elements.sharedColorCount.textContent = 'Sin permiso';
         return;
     }
 
-    if (button) {
-        setButtonBusy(button, true, 'Verificando…');
-    }
-    setGlobalState('waiting', 'Comprobando conexión');
+    const headers = { Accept: 'application/json', Authorization: `Bearer ${token}` };
+    const [hamas, colors] = await Promise.all([
+        requestJson('/api/v1/hamas', { headers }),
+        requestJson('/api/v1/colors', { headers }),
+    ]);
 
+    elements.sharedHamaCount.textContent = String(hamas.meta?.total ?? hamas.data?.length ?? 0);
+    elements.sharedColorCount.textContent = String(colors.meta?.count ?? colors.data?.length ?? 0);
+}
+
+async function loadMeshiverseStatus() {
     try {
-        const data = await requestJson('/api/v1/connections/handshake', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${cleanToken}`,
-            },
-            body: JSON.stringify({ project_name: cleanProject }),
-        });
+        const data = await requestJson('/meshiverse/status', { headers: { Accept: 'application/json' } });
+        const dishTitle = data.dish?.title || 'Sin platillo disponible';
 
-        renderHandshake(data);
+        elements.meshiverseService.textContent = `${data.service || 'MeshiVerse'} · ${data.version || 'v1'}`;
+        elements.meshiverseResource.textContent = dishTitle;
+        elements.meshiverseMessage.textContent = data.message || 'La API externa respondió correctamente.';
 
-        const canRead = capabilityAllowed(data, 'hamas.list');
-        if (canRead) {
-            await verifyHamaList(cleanToken);
+        if (data.connected && data.dish_available) {
+            setAutomaticConnection('success', 'Datos recibidos correctamente');
+            setGlobalState('connected', 'Intercambio activo');
+            return;
         }
 
-        showToast('Conexión autenticada correctamente.');
+        if (data.connected) {
+            setAutomaticConnection('warning', 'API conectada, sin datos disponibles');
+            setGlobalState('connected', 'MeshiVerse conectado');
+            return;
+        }
+
+        setAutomaticConnection('error', 'No se están recibiendo datos');
+        setGlobalState('error', 'Intercambio detenido');
+        elements.meshiverseResource.textContent = 'Sin datos';
     } catch (error) {
-        renderConnectionError(error);
-        showToast('La conexión no pudo autenticarse.', true);
-    } finally {
-        if (button) {
-            setButtonBusy(button, false);
-        }
+        elements.meshiverseMessage.textContent = 'ProyectoAPI no pudo completar la comprobación automática.';
+        elements.meshiverseResource.textContent = 'Sin datos';
+        setAutomaticConnection('error', 'No se están recibiendo datos');
+        setGlobalState('error', 'Intercambio detenido');
     }
 }
 
-async function verifyHamaList(token) {
-    try {
-        const data = await requestJson('/api/v1/hamas', {
-            headers: {
-                Accept: 'application/json',
-                Authorization: `Bearer ${token}`,
-            },
-        });
-        const count = Array.isArray(data.data) ? data.data.length : data.meta?.total;
-        if (Number.isFinite(Number(count))) {
-            elements.sharedCount.textContent = String(count);
-        }
-        setProofCheck(elements.checkRead, 'success', '✓');
-    } catch (error) {
-        setProofCheck(elements.checkRead, 'error', '×');
-        elements.checkRead.querySelector('small').textContent = 'La consulta GET falló';
-    }
-}
-
-function renderHandshake(data) {
-    const canRead = capabilityAllowed(data, 'hamas.list');
-    const canWrite = capabilityAllowed(data, 'hamas.create');
-    const count = data.shared_data?.saved_hamas?.records;
-
-    setGlobalState('connected', 'Conexión confirmada');
-    elements.proofStatus.className = 'proof-status success';
-    elements.proofStatus.textContent = 'Conectado';
-    elements.proofMessage.textContent = data.message || 'El intercambio entre proyectos está autenticado.';
-    setProofCheck(elements.checkToken, 'success', '✓');
-    setProofCheck(elements.checkHandshake, 'success', '✓');
-    setProofCheck(elements.checkRead, canRead ? 'success' : 'denied', canRead ? '✓' : '×');
-    setProofCheck(elements.checkWrite, canWrite ? 'success' : 'denied', canWrite ? '✓' : '×');
-    elements.checkRead.querySelector('small').textContent = canRead ? 'Permiso hamas.read concedido' : 'Permiso no concedido';
-    elements.checkWrite.querySelector('small').textContent = canWrite ? 'Permiso hamas.write concedido' : 'Permiso no concedido';
-
-    if (count !== null && count !== undefined) {
-        elements.sharedCount.textContent = String(count);
-    } else {
-        elements.sharedCount.textContent = 'Sin acceso';
-    }
-
-    elements.proofProvider.textContent = data.connection?.provider || 'ProyectoAPI';
-    elements.proofConsumer.textContent = data.connection?.consumer || 'Proyecto externo';
-    elements.proofExpiry.textContent = formatDate(data.token?.expires_at);
-    elements.proofDetails.hidden = false;
-    document.querySelector('#connection-proof').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-function renderConnectionError(error) {
-    setGlobalState('error', 'Conexión rechazada');
-    elements.proofStatus.className = 'proof-status error';
-    elements.proofStatus.textContent = 'No conectado';
-    elements.proofMessage.textContent = error.status === 401
-        ? 'El token fue rechazado por Laravel Passport.'
-        : error.message;
-    setProofCheck(elements.checkToken, 'error', '×');
-    setProofCheck(elements.checkHandshake, 'error', '×');
-    setProofCheck(elements.checkRead, 'pending', '3');
-    setProofCheck(elements.checkWrite, 'pending', '4');
-    elements.proofDetails.hidden = true;
-    elements.sharedCount.textContent = '—';
-}
-
-function capabilityAllowed(data, key) {
-    return Array.isArray(data.capabilities)
-        && data.capabilities.some((capability) => capability.key === key && capability.allowed === true);
-}
-
-function setProofCheck(element, state, icon) {
-    element.className = `proof-check ${state}`;
-    element.querySelector('i').textContent = icon;
+function setAutomaticConnection(state, title) {
+    elements.meshiverseConnection.className = `automatic-connection ${state}`;
+    elements.meshiverseTitle.textContent = title;
 }
 
 function setGlobalState(state, message) {
@@ -251,75 +161,32 @@ function setGlobalState(state, message) {
     elements.globalStatus.replaceChildren(indicator, document.createTextNode(message));
 }
 
-function renderInlineResult(element, state, message) {
-    element.className = `inline-result ${state}`;
-    const icon = document.createElement('span');
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = state === 'success' ? '✓' : state === 'error' ? '×' : 'i';
-    const copy = document.createElement('p');
-    copy.textContent = message;
-    element.replaceChildren(icon, copy);
+function normalizeToken(value) {
+    return String(value || '').trim().replace(/^Bearer\s+/i, '');
 }
 
-async function testExternalApi(event) {
-    event.preventDefault();
-    const token = normalizeToken(elements.externalToken.value);
-    const urlValue = elements.externalUrl.value.trim();
-    const button = elements.externalForm.querySelector('button[type="submit"]');
-    let url;
-
-    try {
-        url = new URL(urlValue);
-        if (!['http:', 'https:'].includes(url.protocol)) {
-            throw new Error('Protocolo no permitido');
-        }
-    } catch (error) {
-        renderInlineResult(elements.externalResult, 'error', 'Escribe una URL http o https válida.');
-        return;
+function expiryCopy(seconds) {
+    if (!Number.isFinite(Number(seconds))) {
+        return 'Token verificado y listo para compartir';
     }
 
-    if (!token) {
-        renderInlineResult(elements.externalResult, 'error', 'Pega el token emitido por la API externa.');
-        return;
+    const expiration = new Date(Date.now() + Number(seconds) * 1000);
+    return `Válido hasta ${formatDate(expiration.toISOString())}`;
+}
+
+function formatDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return 'fecha no informada';
     }
 
-    setButtonBusy(button, true, 'Conectando…');
-    renderInlineResult(elements.externalResult, 'neutral', 'Contactando la API externa…');
-
-    try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-        const data = await requestJson('/conexiones/probar-externa', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-            },
-            body: JSON.stringify({
-                base_url: url.toString().replace(/\/$/, ''),
-                token,
-            }),
-        });
-        const provider = data.connection?.provider || url.host;
-        renderInlineResult(elements.externalResult, 'success', `Conexión externa confirmada con ${provider}.`);
-        setGlobalState('connected', `Conectado con ${provider}`);
-        showToast('La otra API respondió correctamente.');
-    } catch (error) {
-        const copy = error instanceof TypeError
-            ? 'No fue posible comunicarse con ProyectoAPI para realizar la prueba.'
-            : error.message;
-        renderInlineResult(elements.externalResult, 'error', copy);
-        setGlobalState('error', 'Conexión externa rechazada');
-    } finally {
-        setButtonBusy(button, false);
-    }
+    return new Intl.DateTimeFormat('es-GT', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(date);
 }
 
 function setButtonBusy(button, busy, busyLabel = 'Procesando…') {
-    if (!button) {
-        return;
-    }
-
     if (busy) {
         button.dataset.originalLabel = button.textContent.trim();
         button.textContent = busyLabel;
@@ -331,26 +198,8 @@ function setButtonBusy(button, busy, busyLabel = 'Procesando…') {
     button.disabled = false;
 }
 
-function formatDate(value) {
-    if (!value) {
-        return 'No informado';
-    }
-
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return 'No informado';
-    }
-
-    return new Intl.DateTimeFormat('es-GT', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(date);
-}
-
 async function copyText(value) {
-    if (!value) {
-        return;
-    }
+    if (!value) return;
 
     try {
         await navigator.clipboard.writeText(value);
@@ -364,7 +213,8 @@ async function copyText(value) {
         document.execCommand('copy');
         helper.remove();
     }
-    showToast('Token copiado. Compártelo sin enviar el Client Secret.');
+
+    showToast('Token copiado. Ya puedes entregarlo al otro proyecto.');
 }
 
 function showToast(message, isError = false) {
@@ -378,11 +228,9 @@ function showToast(message, isError = false) {
 elements.generatorForm.addEventListener('submit', generateToken);
 elements.copyToken.addEventListener('click', () => copyText(activeToken));
 elements.useToken.addEventListener('click', () => {
-    if (!activeToken) {
-        return;
-    }
+    if (!activeToken) return;
     sessionStorage.setItem(TOKEN_STORAGE_KEY, activeToken);
     showToast('Token habilitado en esta sesión y listo para el CRUD.');
 });
-elements.testGeneratedToken.addEventListener('click', (event) => testLocalToken(activeToken, activeProject, event.currentTarget));
-elements.externalForm.addEventListener('submit', testExternalApi);
+
+loadMeshiverseStatus();

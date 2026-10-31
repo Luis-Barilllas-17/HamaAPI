@@ -122,6 +122,7 @@
                             "pm.test('Puede consultar y crear Hamas', function () {",
                             "    const permissions = Object.fromEntries(response.capabilities.map(item => [item.key, item.allowed]));",
                             "    pm.expect(permissions['hamas.list']).to.eql(true);",
+                            "    pm.expect(permissions['hamas.colors']).to.eql(true);",
                             "    pm.expect(permissions['hamas.create']).to.eql(true);",
                             "});"
                         ],
@@ -177,6 +178,40 @@
             }
         },
         {
+            "name": "1.1 Listar colores utilizados",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "const response = pm.response.json();",
+                            "pm.test('Colores compartidos correctamente', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "    pm.expect(response.success).to.eql(true);",
+                            "    pm.expect(response.data).to.be.an('array');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/api/v1/colors",
+                    "host": ["{{base_url}}"],
+                    "path": ["api", "v1", "colors"]
+                },
+                "description": "Devuelve cada color usado, la cantidad de cuentas y los proyectos Hama donde aparece."
+            }
+        },
+        {
             "name": "2. Crear hama",
             "event": [
                 {
@@ -209,7 +244,7 @@
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"nombre\": \"Estrella cósmica\",\n    \"descripcion\": \"Patrón de estrella con cuentas amarillas\",\n    \"ancho\": 50,\n    \"alto\": 50,\n    \"cantidad_cuentas\": 4,\n    \"color_principal\": \"#F59E0B\",\n    \"patron\": [\n        { \"posicion\": 1124, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1125, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1174, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1175, \"color\": \"#F59E0B\" }\n    ]\n}",
+                    "raw": "{\n    \"nombre\": \"Estrella cósmica\",\n    \"descripcion\": \"Patrón de estrella con cuentas amarillas\",\n    \"ancho\": 50,\n    \"alto\": 50,\n    \"cantidad_cuentas\": 4,\n    \"color_principal\": \"#F59E0B\",\n    \"es_publico\": true,\n    \"patron\": [\n        { \"posicion\": 1124, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1125, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1174, \"color\": \"#F59E0B\" },\n        { \"posicion\": 1175, \"color\": \"#F59E0B\" }\n    ]\n}",
                     "options": {
                         "raw": {
                             "language": "json"
@@ -258,7 +293,7 @@
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"nombre\": \"Estrella galáctica\",\n    \"descripcion\": \"Patrón actualizado para la demostración\",\n    \"ancho\": 50,\n    \"alto\": 50,\n    \"cantidad_cuentas\": 5,\n    \"color_principal\": \"#8B5CF6\",\n    \"patron\": [\n        { \"posicion\": 1124, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1125, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1174, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1175, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1225, \"color\": \"#FFFFFF\" }\n    ]\n}",
+                    "raw": "{\n    \"nombre\": \"Estrella galáctica\",\n    \"descripcion\": \"Patrón actualizado para la demostración\",\n    \"ancho\": 50,\n    \"alto\": 50,\n    \"cantidad_cuentas\": 5,\n    \"color_principal\": \"#8B5CF6\",\n    \"es_publico\": true,\n    \"patron\": [\n        { \"posicion\": 1124, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1125, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1174, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1175, \"color\": \"#8B5CF6\" },\n        { \"posicion\": 1225, \"color\": \"#FFFFFF\" }\n    ]\n}",
                     "options": {
                         "raw": {
                             "language": "json"
